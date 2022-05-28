@@ -1,0 +1,48 @@
+{
+  "name": "discordimpersonator",
+  "version": "1.0.0",
+  "description": "Usefull to post/say/publish things under your discord user",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "test": "jest",
+    "build": "tsc",
+    "full": "npm-run-all build test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slhad/DiscordImpersonator.git"
+  },
+  "keywords": [
+    "discord",
+    "bot"
+  ],
+  "author": "sylvainrivierre@gmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/slhad/DiscordImpersonator/issues"
+  },
+  "homepage": "https://github.com/slhad/DiscordImpersonator#readme",
+  "devDependencies": {
+    "@jest/globals": "^28.1.0",
+    "@types/jest": "^27.5.1",
+    "@typescript-eslint/eslint-plugin": "^5.26.0",
+    "@typescript-eslint/parser": "^5.26.0",
+    "eslint": "^8.16.0",
+    "jest": "^28.1.0",
+    "ts-jest": "^28.0.3",
+    "typescript": "^4.7.2"
+  },
+  "dependencies": {
+    "npm-run-all": "^4.1.5"
+  },
+  "jest": {
+    "verbose": true,
+    "clearMocks": true,
+    "coverageDirectory": "coverage",
+    "preset": "ts-jest",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ]
+  }
+}
