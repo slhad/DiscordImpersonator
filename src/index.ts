@@ -1,5 +1,6 @@
-import { RequestData, REST } from "@discordjs/rest"
-import { Routes } from "discord-api-types/v10"
+import { InternalRequest, RequestData, RequestMethod, REST } from "@discordjs/rest"
+import { APIGuildChannel, APIPartialChannel, APIUser, RESTGetAPICurrentUserGuildsResult, Routes } from "discord-api-types/v10"
+import { stringify } from "querystring"
 
 import yargs, { ArgumentsCamelCase } from "yargs"
 import { hideBin } from "yargs/helpers"
@@ -9,8 +10,12 @@ import { token, client_id, client_secret } from "../config.json"
 
 const rest = new REST({ version: "10" })
 const opts: RequestData = {}
-let tokenData: { access_token: string, token_type: string, expire_in: number, scope: string }
-const tokenAuthGrantScope = encodeURIComponent("grant_type=client_credentials&scope=identify connections")
+let tokenData: { access_token: string, token_type: string, expires_in: number, scope: string }
+const tokenAuthGrantScope = stringify({ "grant_type": "client_credentials", "scope": "identify connections guilds" })
+
+let me: APIUser
+let guilds: RESTGetAPICurrentUserGuildsResult
+const channels: { [key: string]: APIPartialChannel } = {}
 
 const isRunnable = (force: boolean) => {
     switch (true) {
@@ -30,7 +35,7 @@ const isRunnable = (force: boolean) => {
 
 const getToken = async () => {
     const authEnc = Buffer.from(`${client_id}:${client_secret}`).toString("base64")
-    const resp = await rest.post(Routes.oauth2TokenExchange(), {
+    const tokenOpts = {
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
             "Authorization": `Basic ${authEnc}`
@@ -38,10 +43,12 @@ const getToken = async () => {
         body: tokenAuthGrantScope,
         auth: false,
         passThroughBody: true
-    })
+    }
+    const resp = await rest.post(Routes.oauth2TokenExchange(), tokenOpts)
     if (resp) {
         tokenData = resp as typeof tokenData
     }
+    console.log(`Token info : ${tokenData.scope} expire ${tokenData.expires_in}`)
     return tokenData.access_token
 }
 
@@ -51,6 +58,7 @@ const setupCredentials = async () => {
 
         const accessToken = await getToken()
         rest.setToken(accessToken)
+        opts.authPrefix = "Bearer"
     } else if (token) {
         //using https://discord.com/developers/docs/topics/oauth2#client-credentials-grant
 
@@ -64,6 +72,33 @@ const setupCredentials = async () => {
 }
 
 
+const queryApi = async <T>(method: RequestMethod, fullRoute: `/${string}`, options?: RequestData) => {
+    const iRequest: InternalRequest = { ...opts, ...options, ...{ method: method, fullRoute } }
+    console.log(`querying ${iRequest.method} ${iRequest.fullRoute}`)
+    return rest.request(iRequest) as Promise<T>
+}
+
+const refreshUserInfo = async (verbose?: boolean) => {
+    me = await queryApi<APIUser>(RequestMethod.Get, Routes.user())
+    if (verbose || !me) {
+        console.log(`username:${me.username}, locale:${me.locale}, mfa:${me.mfa_enabled}`)
+    }
+
+    guilds = await queryApi<RESTGetAPICurrentUserGuildsResult>(RequestMethod.Get, Routes.userGuilds())
+    if (verbose || !guilds || Object.keys(channels).length === 0) {
+        for (const guild of guilds) {
+            if (verbose || !guild) {
+                console.log(`guild:${guild.name},${guild.id}`)
+            }
+            const channelsApi = await queryApi<APIPartialChannel[]>(RequestMethod.Get, Routes.guildChannels(guild.id))
+            for (const channel of channelsApi) {
+                if (!channels[guild.id]) {
+                    channels[guild.id] = channel
+                }
+            }
+        }
+    }
+}
 
 const run = async (args: ArgumentsCamelCase<{ f: boolean }>) => {
 
@@ -72,9 +107,12 @@ const run = async (args: ArgumentsCamelCase<{ f: boolean }>) => {
     }
 
     await setupCredentials()
+    await refreshUserInfo()
 
-    const channels = await rest.get(Routes.channelMessages("875047156719968259"), opts)
-    console.log(JSON.stringify(channels))
+
+    // await queryApi(RequestMethod.Post,Routes.channelMessages("875047156719968256"))
+
+
 }
 
 const argv = yargs(hideBin(process.argv))
