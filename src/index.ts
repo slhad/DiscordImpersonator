@@ -1,5 +1,6 @@
 import { InternalRequest, RequestData, RequestMethod, REST } from "@discordjs/rest"
-import { APIGuildChannel, APIPartialChannel, APIUser, RESTGetAPICurrentUserGuildsResult, Routes } from "discord-api-types/v10"
+import { Permissions } from "discord-api-types/globals"
+import { APIGuildChannel, APIPartialChannel, APIUser, PermissionFlagsBits, RESTGetAPICurrentUserGuildsResult, Routes } from "discord-api-types/v10"
 import { stringify } from "querystring"
 
 import yargs, { ArgumentsCamelCase } from "yargs"
@@ -33,7 +34,7 @@ const isRunnable = (force: boolean) => {
     }
 }
 
-const getToken = async () => {
+const getTokenUser = async () => {
     const authEnc = Buffer.from(`${client_id}:${client_secret}`).toString("base64")
     const tokenOpts = {
         headers: {
@@ -52,11 +53,23 @@ const getToken = async () => {
     return tokenData.access_token
 }
 
+const getTokenBot = async () => {
+
+    const tokenOpts = {
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: stringify({ client_id, scope: "bot", permission: "" + (PermissionFlagsBits.SendMessages) })
+    }
+    const resp = await rest.post(Routes.oauth2Authorization(), tokenOpts)
+    return resp
+}
+
 const setupCredentials = async () => {
     if (client_id && client_secret) {
         //using https://discord.com/developers/docs/topics/oauth2#bot-vs-user-accounts
 
-        const accessToken = await getToken()
+        const accessToken = await getTokenUser()
         rest.setToken(accessToken)
         opts.authPrefix = "Bearer"
     } else if (token) {
@@ -90,12 +103,12 @@ const refreshUserInfo = async (verbose?: boolean) => {
             if (verbose || !guild) {
                 console.log(`guild:${guild.name},${guild.id}`)
             }
-            const channelsApi = await queryApi<APIPartialChannel[]>(RequestMethod.Get, Routes.guildChannels(guild.id))
-            for (const channel of channelsApi) {
-                if (!channels[guild.id]) {
-                    channels[guild.id] = channel
-                }
-            }
+            // const channelsApi = await queryApi<APIPartialChannel[]>(RequestMethod.Get, Routes.guildChannels(guild.id))
+            // for (const channel of channelsApi) {
+            //     if (!channels[guild.id]) {
+            //         channels[guild.id] = channel
+            //     }
+            // }
         }
     }
 }
@@ -107,9 +120,10 @@ const run = async (args: ArgumentsCamelCase<{ f: boolean }>) => {
     }
 
     await setupCredentials()
-    await refreshUserInfo()
+    await refreshUserInfo(true)
 
-
+    const channelTest = "875271326913417278"
+    await queryApi(RequestMethod.Post, Routes.channelMessages(channelTest), { body: JSON.stringify({ content: "Coucou" }) })
     // await queryApi(RequestMethod.Post,Routes.channelMessages("875047156719968256"))
 
 
